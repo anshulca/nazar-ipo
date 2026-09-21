@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Panel</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0c19;--bg2:#111327;--bg3:#181b30;--bg4:#1e2140;
+  --fg:#e2e4f0;--fg2:#9a9dba;--fg3:#6b6e8a;
+  --brand:#4f46e5;--brand-light:#6366f1;--brand-dark:#3730a3;
+  --success:#22c55e;--warn:#f59e0b;--error:#ef4444;--info:#3b82f6;
+  --radius:8px;--radius-sm:4px;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+}
+body{background:var(--bg);color:var(--fg);min-height:100vh;font-size:14px;line-height:1.5}
+a{color:var(--brand-light);text-decoration:none}
+input,select,textarea,button{font:inherit;color:inherit;border:none;outline:none;background:none}
+button{cursor:pointer}
+
+/* Login */
+#login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:16px}
+.login-card{background:var(--bg2);border:1px solid var(--bg4);border-radius:var(--radius);padding:32px;width:100%;max-width:360px;text-align:center}
+.login-card h1{font-size:24px;margin-bottom:4px}
+.login-card p{color:var(--fg2);margin-bottom:24px;font-size:13px}
+.login-card input{width:100%;padding:10px 14px;background:var(--bg3);border:1px solid var(--bg4);border-radius:var(--radius-sm);margin-bottom:12px;color:var(--fg)}
+.login-card input:focus{border-color:var(--brand)}
+.login-card .btn-primary{width:100%}
+.login-error{color:var(--error);font-size:13px;margin-top:8px;display:none}
+
+/* App */
+#app{display:none;max-width:1200px;margin:0 auto;padding:8px 16px 80px}
+header{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--bg4);margin-bottom:16px}
+header h1{font-size:20px;font-weight:700}
+header h1 span{color:var(--brand-light)}
+.header-actions{display:flex;gap:8px;align-items:center}
+.btn{padding:6px 14px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;transition:all .15s}
+.btn-primary{background:var(--brand);color:#fff}.btn-primary:hover{background:var(--brand-light)}
+.btn-secondary{background:var(--bg3);color:var(--fg2);border:1px solid var(--bg4)}.btn-secondary:hover{background:var(--bg4);color:var(--fg)}
+.btn-danger{background:var(--error);color:#fff}.btn-danger:hover{opacity:.85}
+.btn-success{background:var(--success);color:#fff}.btn-success:hover{opacity:.85}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* Tabs */
+.tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--bg4);margin-bottom:16px;-webkit-overflow-scrolling:touch}
+.tab-btn{padding:8px 16px;color:var(--fg3);font-weight:500;border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s;font-size:13px}
+.tab-btn:hover{color:var(--fg2)}
+.tab-btn.active{color:var(--brand-light);border-bottom-color:var(--brand-light)}
+.tab-panel{display:none}.tab-panel.active{display:block}
+
+/* Cards */
+.card{background:var(--bg2);border:1px solid var(--bg4);border-radius:var(--radius);padding:16px;margin-bottom:12px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.card-header h2{font-size:16px;font-weight:600}
+.card-header h3{font-size:14px;font-weight:600}
+
+/* Table */
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:8px 10px;color:var(--fg3);font-weight:500;border-bottom:1px solid var(--bg4);white-space:nowrap;font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle}
+tr:hover td{background:rgba(79,70,229,.04)}
+tr.clickable{cursor:pointer}
+
+/* Badges */
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+.badge-open{background:rgba(34,197,94,.15);color:#4ade80}
+.badge-upcoming{background:rgba(59,130,246,.15);color:#60a5fa}
+.badge-listed{background:rgba(156,163,175,.15);color:#9ca3af}
+.badge-sme{background:rgba(245,158,11,.15);color:#fbbf24}
+.badge-main{background:rgba(79,70,229,.15);color:#818cf8}
+.badge-corrected{background:rgba(79,70,229,.2);color:var(--brand-light)}
+
+/* Form */
+.form-group{margin-bottom:12px}
+.form-group label{display:block;font-size:12px;color:var(--fg2);margin-bottom:4px;font-weight:500}
+.form-input{width:100%;padding:8px 12px;background:var(--bg3);border:1px solid var(--bg4);border-radius:var(--radius-sm);color:var(--fg)}
+.form-input:focus{border-color:var(--brand)}
+select.form-input{appearance:auto}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:480px){.form-row{grid-template-columns:1fr}}
+
+/* Search */
+.search-bar{margin-bottom:16px}
+.search-bar input{width:100%;padding:10px 14px;background:var(--bg2);border:1px solid var(--bg4);border-radius:var(--radius);color:var(--fg)}
+.search-bar input:focus{border-color:var(--brand)}
+.search-bar input::placeholder{color:var(--fg3)}
+
+/* Status bar */
+.status-bar{position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid var(--bg4);padding:8px 16px;font-size:12px;color:var(--fg2);display:flex;align-items:center;justify-content:space-between;z-index:100}
+.status-dot{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:6px}
+.status-dot.green{background:var(--success)}.status-dot.yellow{background:var(--warn)}.status-dot.red{background:var(--error)}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:200;padding:16px}
+.modal-overlay.show{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--bg4);border-radius:var(--radius);padding:24px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto}
+.modal h2{font-size:18px;margin-bottom:16px}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+
+/* Toast */
+.toast-container{position:fixed;top:16px;right:16px;z-index:300;display:flex;flex-direction:column;gap:8px}
+.toast{padding:10px 16px;border-radius:var(--radius-sm);font-size:13px;animation:fadeIn .2s ease;max-width:360px}
+.toast-success{background:rgba(34,197,94,.9);color:#fff}
+.toast-error{background:rgba(239,68,68,.9);color:#fff}
+.toast-info{background:rgba(59,130,246,.9);color:#fff}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+
+/* Corrections list */
+.correction-item{display:flex;align-items:flex-start;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.correction-item:last-child{border:none}
+.correction-name{font-weight:600;margin-bottom:4px}
+.correction-fields{font-size:12px;color:var(--fg2)}
+.correction-fields span{display:inline-block;background:var(--bg3);padding:1px 6px;border-radius:3px;margin:2px 2px 2px 0}
+
+/* RHP row */
+.rhp-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.rhp-row:last-child{border:none}
+.rhp-name{flex:1;min-width:0}
+.rhp-name .ipo-name{font-weight:500;font-size:13px}
+.rhp-input{flex:2;min-width:0}
+.rhp-input input{width:100%;padding:6px 10px;background:var(--bg3);border:1px solid var(--bg4);border-radius:var(--radius-sm);color:var(--fg);font-size:12px}
+.rhp-input input:focus{border-color:var(--brand)}
+@media(max-width:600px){.rhp-row{flex-direction:column;align-items:stretch}.rhp-name,.rhp-input{flex:none}}
+
+/* Misc */
+.empty-state{text-align:center;padding:40px 16px;color:var(--fg3)}
+.count-badge{background:var(--bg4);color:var(--fg2);padding:1px 7px;border-radius:10px;font-size:11px;margin-left:6px}
+.loading{text-align:center;padding:32px;color:var(--fg3)}
+</style>
+</head>
+<body>
+
+<!-- Login Screen -->
+<div id="login-screen">
+  <div class="login-card">
+    <h1>&#2349;&#2366;&#2357; Admin</h1>
+    <p>Private administration panel</p>
+    <input type="password" id="login-password" placeholder="Enter password" autofocus>
+    <button class="btn btn-primary" onclick="attemptLogin()">Sign In</button>
+    <div class="login-error" id="login-error">Invalid password</div>
+  </div>
+</div>
+
+<!-- Main App -->
+<div id="app">
+  <header>
+    <h1><span>&#2349;&#2366;&#2357;</span> Admin</h1>
+    <div class="header-actions">
+      <button class="btn btn-secondary btn-sm" onclick="refreshAll()" title="Refresh data">&#8635; Refresh</button>
+      <button class="btn btn-secondary btn-sm" onclick="showPATModal()" title="GitHub PAT">&#128273;</button>
+      <button class="btn btn-secondary btn-sm" onclick="logout()" title="Logout">Logout</button>
+    </div>
+  </header>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="tab-data">IPO Data</button>
+    <button class="tab-btn" data-tab="tab-corrections">Corrections</button>
+    <button class="tab-btn" data-tab="tab-quick">Quick Actions</button>
+    <button class="tab-btn" data-tab="tab-rhp">RHP Links</button>
+  </div>
+
+  <!-- Tab 1: IPO Data -->
+  <div class="tab-panel active" id="tab-data">
+    <div class="search-bar">
+      <input type="text" id="data-search" placeholder="Search IPOs by name, type, status..." oninput="renderIPOTable()">
+    </div>
+    <div class="card">
+      <div class="table-wrap" id="ipo-table-wrap">
+        <div class="loading">Loading IPO data...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 2: Corrections -->
+  <div class="tab-panel" id="tab-corrections">
+    <div class="card">
+      <div class="card-header">
+        <h2>Current Corrections</h2>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary btn-sm" onclick="showAddCorrectionModal()">+ Add</button>
+          <button class="btn btn-success btn-sm" id="push-btn" onclick="pushCorrections()">Push to GitHub</button>
+        </div>
+      </div>
+      <div id="corrections-list">
+        <div class="loading">Loading corrections...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 3: Quick Actions -->
+  <div class="tab-panel" id="tab-quick">
+    <!-- Override GMP -->
+    <div class="card">
+      <div class="card-header"><h3>Override GMP</h3></div>
+      <div class="form-group">
+        <label>Select IPO</label>
+        <select class="form-input" id="qa-gmp-ipo"></select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>GMP %</label>
+          <input type="number" class="form-input" id="qa-gmp-pct" placeholder="e.g. 12.5" step="0.1">
+        </div>
+        <div class="form-group">
+          <label>GMP Value (&#8377;)</label>
+          <input type="number" class="form-input" id="qa-gmp-val" placeholder="e.g. 60" step="0.01">
+        </div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="quickSetGMP()">Apply GMP Override</button>
+    </div>
+
+    <!-- Set Listing Price -->
+    <div class="card">
+      <div class="card-header"><h3>Set Listing Price</h3></div>
+      <div class="form-group">
+        <label>Select IPO</label>
+        <select class="form-input" id="qa-list-ipo"></select>
+      </div>
+      <div class="form-group">
+        <label>Actual Listing Price (&#8377;)</label>
+        <input type="number" class="form-input" id="qa-list-price" placeholder="e.g. 640" step="0.01">
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="quickSetListing()">Set Listing Price</button>
+    </div>
+
+    <!-- Set Registrar -->
+    <div class="card">
+      <div class="card-header"><h3>Set Registrar</h3></div>
+      <div class="form-group">
+        <label>Select IPO</label>
+        <select class="form-input" id="qa-reg-ipo"></select>
+      </div>
+      <div class="form-group">
+        <label>Registrar</label>
+        <select class="form-input" id="qa-reg-val">
+          <option value="">-- Select --</option>
+          <option>MUFG</option>
+          <option>KFIN</option>
+          <option>BIGSHARE</option>
+          <option>MAASHITLA</option>
+          <option>SKYLINE</option>
+          <option>INTEGRATED</option>
+        </select>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="quickSetRegistrar()">Set Registrar</button>
+    </div>
+
+    <!-- Trigger Workflow -->
+    <div class="card">
+      <div class="card-header"><h3>Trigger Data Update</h3></div>
+      <p style="color:var(--fg2);font-size:13px;margin-bottom:12px">
+        Triggers the <code>update.yml</code> workflow to re-fetch all IPO data immediately.
+      </p>
+      <button class="btn btn-primary" onclick="triggerWorkflow()">Trigger Workflow</button>
+    </div>
+  </div>
+
+  <!-- Tab 4: RHP Links -->
+  <div class="tab-panel" id="tab-rhp">
+    <div class="card">
+      <div class="card-header">
+        <h2>Missing RHP Links <span class="count-badge" id="rhp-count">0</span></h2>
+        <button class="btn btn-primary btn-sm" onclick="saveRHPLinks()">Save All</button>
+      </div>
+      <div id="rhp-list">
+        <div class="loading">Loading...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <div id="status-text"><span class="status-dot yellow"></span>Loading...</div>
+    <div id="status-right"></div>
+  </div>
+</div>
+
+<!-- Modal Overlay -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModalOnBg(event)">
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+// ── Constants ──
+const REPO_OWNER = 'anshulca';
+const REPO_NAME = 'bhaav-data';
+const DATA_URL = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/bhaav-data.json`;
+const CORRECTIONS_API = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/corrections.json`;
+const WORKFLOW_API = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/update.yml/dispatches`;
+const PASSWORD_HASH = 'e40798d4051faead4b42221ed6a3925508065494c1335187057a7c1d2a7c0ca8';
+const CORRECTABLE_FIELDS = ['actualList','gmpPct','gmpValue','registrar','allotISO','issueSize','type','rhpUrl'];
+
+// ── State ──
+let liveData = [];
+let corrections = {};
+let correctionsSHA = null;
+let isLoggedIn = false;
+
+// ── Crypto helpers ──
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+function xorEncrypt(text, key) {
+  let result = '';
+  for (let i = 0; i < text.length; i++) {
+    result += String.fromCharCode(text.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+  }
+  return btoa(result);
+}
+
+function xorDecrypt(encoded, key) {
+  try {
+    const text = atob(encoded);
+    let result = '';
+    for (let i = 0; i < text.length; i++) {
+      result += String.fromCharCode(text.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+    }
+    return result;
+  } catch { return ''; }
+}
+
+// ── PAT management ──
+let _loginPassword = '';
+
+function getPAT() {
+  const stored = localStorage.getItem('_bpat');
+  if (!stored || !_loginPassword) return null;
+  const dec = xorDecrypt(stored, _loginPassword);
+  return dec.startsWith('ghp_') || dec.startsWith('github_pat_') ? dec : null;
+}
+
+function storePAT(pat) {
+  if (!_loginPassword) return;
+  localStorage.setItem('_bpat', xorEncrypt(pat, _loginPassword));
+}
+
+// ── Auth ──
+async function attemptLogin() {
+  const pw = document.getElementById('login-password').value;
+  const hash = await sha256(pw);
+  if (hash === PASSWORD_HASH) {
+    _loginPassword = pw;
+    isLoggedIn = true;
+    sessionStorage.setItem('_bauth', '1');
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    init();
+  } else {
+    const el = document.getElementById('login-error');
+    el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 3000);
+  }
+}
+
+function logout() {
+  sessionStorage.removeItem('_bauth');
+  _loginPassword = '';
+  isLoggedIn = false;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-password').value = '';
+}
+
+// Check session on load
+document.getElementById('login-password').addEventListener('keydown', e => {
+  if (e.key === 'Enter') attemptLogin();
+});
+
+// ── Toast ──
+function toast(msg, type = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.textContent = msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+// ── Modal ──
+function openModal(html) {
+  document.getElementById('modal-content').innerHTML = html;
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('show');
+}
+
+function closeModalOnBg(e) {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+}
+
+// ── Tabs ──
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ── Data fetching ──
+async function fetchLiveData() {
+  try {
+    const res = await fetch(DATA_URL + '?t=' + Date.now());
+    if (!res.ok) throw new Error('Failed to fetch live data');
+    liveData = await res.json();
+    if (!Array.isArray(liveData)) liveData = [];
+    setStatus('green', `${liveData.length} IPOs loaded`);
+    return true;
+  } catch (e) {
+    setStatus('red', 'Failed to fetch live data');
+    toast('Failed to fetch live data: ' + e.message, 'error');
+    return false;
+  }
+}
+
+async function fetchCorrections() {
+  const pat = getPAT();
+  try {
+    const headers = { 'Accept': 'application/vnd.github.v3+json' };
+    if (pat) headers['Authorization'] = 'Bearer ' + pat;
+    const res = await fetch(CORRECTIONS_API + '?t=' + Date.now(), { headers });
+    if (res.status === 404) {
+      corrections = {};
+      correctionsSHA = null;
+      return true;
+    }
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    correctionsSHA = data.sha;
+    const content = atob(data.content.replace(/\n/g, ''));
+    corrections = JSON.parse(content);
+    return true;
+  } catch (e) {
+    toast('Failed to fetch corrections: ' + e.message, 'error');
+    return false;
+  }
+}
+
+// ── Render IPO Table ──
+function renderIPOTable() {
+  const search = (document.getElementById('data-search').value || '').toLowerCase();
+  const filtered = liveData.filter(ipo => {
+    const name = (ipo.name || ipo.companyName || '').toLowerCase();
+    const type = (ipo.type || '').toLowerCase();
+    const status = (ipo.status || '').toLowerCase();
+    return name.includes(search) || type.includes(search) || status.includes(search);
+  });
+
+  const hasCorrectionFor = (name) => corrections && corrections[name];
+
+  let html = '<table><thead><tr>';
+  html += '<th>Name</th><th>Type</th><th>Status</th><th>GMP%</th><th>Price</th><th>Subs</th><th>Registrar</th><th>RHP</th><th>List</th>';
+  html += '</tr></thead><tbody>';
+
+  if (filtered.length === 0) {
+    html += '<tr><td colspan="9" style="text-align:center;color:var(--fg3);padding:24px">No IPOs found</td></tr>';
+  }
+
+  filtered.forEach(ipo => {
+    const name = ipo.name || ipo.companyName || 'Unknown';
+    const type = ipo.type || '-';
+    const status = ipo.status || '-';
+    const gmpPct = ipo.gmpPct != null ? ipo.gmpPct + '%' : '-';
+    const price = ipo.priceBand || ipo.price || '-';
+    const subs = ipo.subscription || ipo.totalSubscription || '-';
+    const registrar = ipo.registrar || '-';
+    const rhp = ipo.rhpUrl ? 'Yes' : 'No';
+    const listing = ipo.actualList || ipo.listingPrice || '-';
+    const corrected = hasCorrectionFor(name);
+
+    const statusClass = status.toLowerCase().includes('open') ? 'badge-open'
+      : status.toLowerCase().includes('upcoming') ? 'badge-upcoming'
+      : status.toLowerCase().includes('listed') ? 'badge-listed' : '';
+    const typeClass = type.toLowerCase() === 'sme' ? 'badge-sme' : type.toLowerCase() === 'mainboard' ? 'badge-main' : '';
+
+    html += `<tr class="clickable" onclick="openEditModal('${escAttr(name)}')">`;
+    html += `<td style="font-weight:500">${escHtml(name)}${corrected ? ' <span class="badge badge-corrected">C</span>' : ''}</td>`;
+    html += `<td><span class="badge ${typeClass}">${escHtml(type)}</span></td>`;
+    html += `<td><span class="badge ${statusClass}">${escHtml(status)}</span></td>`;
+    html += `<td>${escHtml(String(gmpPct))}</td>`;
+    html += `<td>${escHtml(String(price))}</td>`;
+    html += `<td>${escHtml(String(subs))}</td>`;
+    html += `<td>${escHtml(registrar)}</td>`;
+    html += `<td style="color:${ipo.rhpUrl ? 'var(--success)' : 'var(--fg3)'}">${rhp}</td>`;
+    html += `<td>${escHtml(String(listing))}</td>`;
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('ipo-table-wrap').innerHTML = html;
+}
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function escAttr(s) {
+  return s.replace(/&/g,'&amp;').replace(/'/g,'&#39;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Render Corrections ──
+function renderCorrections() {
+  const container = document.getElementById('corrections-list');
+  const keys = Object.keys(corrections);
+
+  if (keys.length === 0) {
+    container.innerHTML = '<div class="empty-state">No corrections yet. Click "+ Add" to create one.</div>';
+    return;
+  }
+
+  let html = '';
+  keys.forEach(name => {
+    const fields = corrections[name];
+    const fieldTags = Object.entries(fields)
+      .map(([k, v]) => `<span>${escHtml(k)}: ${escHtml(String(v))}</span>`)
+      .join('');
+    html += `<div class="correction-item">
+      <div>
+        <div class="correction-name">${escHtml(name)}</div>
+        <div class="correction-fields">${fieldTags}</div>
+      </div>
+      <div style="display:flex;gap:4px;flex-shrink:0">
+        <button class="btn btn-secondary btn-sm" onclick="openEditCorrectionModal('${escAttr(name)}')">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteCorrection('${escAttr(name)}')">Del</button>
+      </div>
+    </div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+// ── Render RHP ──
+function renderRHP() {
+  const missing = liveData.filter(ipo => !ipo.rhpUrl);
+  document.getElementById('rhp-count').textContent = missing.length;
+
+  if (missing.length === 0) {
+    document.getElementById('rhp-list').innerHTML = '<div class="empty-state">All IPOs have RHP links.</div>';
+    return;
+  }
+
+  let html = '';
+  missing.forEach(ipo => {
+    const name = ipo.name || ipo.companyName || 'Unknown';
+    const existing = corrections[name] && corrections[name].rhpUrl ? corrections[name].rhpUrl : '';
+    html += `<div class="rhp-row">
+      <div class="rhp-name"><div class="ipo-name">${escHtml(name)}</div></div>
+      <div class="rhp-input"><input type="url" placeholder="Paste RHP URL..." data-ipo="${escAttr(name)}" value="${escAttr(existing)}"></div>
+    </div>`;
+  });
+
+  document.getElementById('rhp-list').innerHTML = html;
+}
+
+// ── Populate Quick Action dropdowns ──
+function populateIPODropdowns() {
+  const selects = ['qa-gmp-ipo', 'qa-list-ipo', 'qa-reg-ipo'];
+  const options = '<option value="">-- Select IPO --</option>' +
+    liveData.map(ipo => {
+      const name = ipo.name || ipo.companyName || 'Unknown';
+      return `<option value="${escAttr(name)}">${escHtml(name)}</option>`;
+    }).join('');
+  selects.forEach(id => document.getElementById(id).innerHTML = options);
+}
+
+// ── Edit modal from IPO table ──
+function openEditModal(name) {
+  const ipo = liveData.find(i => (i.name || i.companyName) === name);
+  const existing = corrections[name] || {};
+
+  let fieldsHtml = '';
+  CORRECTABLE_FIELDS.forEach(field => {
+    const currentVal = existing[field] != null ? existing[field] : '';
+    const liveVal = ipo ? (ipo[field] != null ? ipo[field] : '') : '';
+    fieldsHtml += `<div class="form-group">
+      <label>${field} ${liveVal ? `<span style="color:var(--fg3)">(live: ${escHtml(String(liveVal))})</span>` : ''}</label>
+      <input class="form-input" id="edit-field-${field}" value="${escAttr(String(currentVal))}" placeholder="Leave empty to not override">
+    </div>`;
+  });
+
+  openModal(`
+    <h2>Edit: ${escHtml(name)}</h2>
+    ${fieldsHtml}
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEditModal('${escAttr(name)}')">Save to Corrections</button>
+    </div>
+  `);
+}
+
+function saveEditModal(name) {
+  const newFields = {};
+  CORRECTABLE_FIELDS.forEach(field => {
+    const val = document.getElementById('edit-field-' + field).value.trim();
+    if (val !== '') {
+      // Try to parse as number
+      const num = Number(val);
+      newFields[field] = !isNaN(num) && val !== '' && field !== 'allotISO' && field !== 'registrar' && field !== 'issueSize' && field !== 'type' && field !== 'rhpUrl' ? num : val;
+    }
+  });
+
+  if (Object.keys(newFields).length === 0) {
+    delete corrections[name];
+  } else {
+    corrections[name] = newFields;
+  }
+
+  closeModal();
+  renderCorrections();
+  renderIPOTable();
+  toast('Correction saved locally. Push to GitHub to apply.', 'info');
+}
+
+// ── Add correction modal ──
+function showAddCorrectionModal() {
+  const options = liveData.map(ipo => {
+    const name = ipo.name || ipo.companyName || 'Unknown';
+    return `<option value="${escAttr(name)}">${escHtml(name)}</option>`;
+  }).join('');
+
+  let fieldsHtml = '';
+  CORRECTABLE_FIELDS.forEach(field => {
+    fieldsHtml += `<div class="form-group">
+      <label>${field}</label>
+      <input class="form-input" id="add-field-${field}" placeholder="Leave empty to skip">
+    </div>`;
+  });
+
+  openModal(`
+    <h2>Add Correction</h2>
+    <div class="form-group">
+      <label>Select IPO</label>
+      <select class="form-input" id="add-correction-ipo">
+        <option value="">-- Select --</option>
+        ${options}
+      </select>
+    </div>
+    ${fieldsHtml}
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveAddCorrection()">Add</button>
+    </div>
+  `);
+}
+
+function saveAddCorrection() {
+  const name = document.getElementById('add-correction-ipo').value;
+  if (!name) { toast('Select an IPO first', 'error'); return; }
+
+  const newFields = {};
+  CORRECTABLE_FIELDS.forEach(field => {
+    const val = document.getElementById('add-field-' + field).value.trim();
+    if (val !== '') {
+      const num = Number(val);
+      newFields[field] = !isNaN(num) && val !== '' && field !== 'allotISO' && field !== 'registrar' && field !== 'issueSize' && field !== 'type' && field !== 'rhpUrl' ? num : val;
+    }
+  });
+
+  if (Object.keys(newFields).length === 0) { toast('Enter at least one field', 'error'); return; }
+
+  corrections[name] = { ...(corrections[name] || {}), ...newFields };
+  closeModal();
+  renderCorrections();
+  renderIPOTable();
+  toast(`Correction added for "${name}". Push to GitHub to apply.`, 'info');
+}
+
+// ── Edit correction modal ──
+function openEditCorrectionModal(name) {
+  openEditModal(name);
+}
+
+// ── Delete correction ──
+function deleteCorrection(name) {
+  if (!confirm(`Delete all corrections for "${name}"?`)) return;
+  delete corrections[name];
+  renderCorrections();
+  renderIPOTable();
+  toast(`Correction deleted for "${name}". Push to GitHub to apply.`, 'info');
+}
+
+// ── Push to GitHub ──
+async function pushCorrections() {
+  const pat = getPAT();
+  if (!pat) {
+    showPATModal();
+    toast('Set your GitHub PAT first', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('push-btn');
+  btn.disabled = true;
+  btn.textContent = 'Pushing...';
+
+  try {
+    // Re-fetch to get latest SHA
+    const getRes = await fetch(CORRECTIONS_API, {
+      headers: { 'Authorization': 'Bearer ' + pat, 'Accept': 'application/vnd.github.v3+json' }
+    });
+
+    let sha = null;
+    if (getRes.ok) {
+      const getData = await getRes.json();
+      sha = getData.sha;
+    } else if (getRes.status !== 404) {
+      throw new Error('Failed to check existing file: HTTP ' + getRes.status);
+    }
+
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(corrections, null, 2))));
+    const body = {
+      message: 'Update corrections.json via admin panel',
+      content: content,
+      branch: 'main'
+    };
+    if (sha) body.sha = sha;
+
+    const putRes = await fetch(CORRECTIONS_API, {
+      method: 'PUT',
+      headers: {
+        'Authorization': 'Bearer ' + pat,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!putRes.ok) {
+      const errData = await putRes.json().catch(() => ({}));
+      throw new Error(errData.message || 'HTTP ' + putRes.status);
+    }
+
+    const result = await putRes.json();
+    correctionsSHA = result.content.sha;
+    toast('Corrections pushed to GitHub successfully!', 'success');
+  } catch (e) {
+    toast('Push failed: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Push to GitHub';
+  }
+}
+
+// ── Quick Actions ──
+function quickSetGMP() {
+  const name = document.getElementById('qa-gmp-ipo').value;
+  if (!name) { toast('Select an IPO', 'error'); return; }
+  const pct = document.getElementById('qa-gmp-pct').value.trim();
+  const val = document.getElementById('qa-gmp-val').value.trim();
+  if (!pct && !val) { toast('Enter GMP % or value', 'error'); return; }
+
+  if (!corrections[name]) corrections[name] = {};
+  if (pct) corrections[name].gmpPct = Number(pct);
+  if (val) corrections[name].gmpValue = Number(val);
+
+  document.getElementById('qa-gmp-pct').value = '';
+  document.getElementById('qa-gmp-val').value = '';
+  renderCorrections();
+  toast(`GMP override set for "${name}". Push to GitHub to apply.`, 'success');
+}
+
+function quickSetListing() {
+  const name = document.getElementById('qa-list-ipo').value;
+  if (!name) { toast('Select an IPO', 'error'); return; }
+  const price = document.getElementById('qa-list-price').value.trim();
+  if (!price) { toast('Enter listing price', 'error'); return; }
+
+  if (!corrections[name]) corrections[name] = {};
+  corrections[name].actualList = Number(price);
+
+  document.getElementById('qa-list-price').value = '';
+  renderCorrections();
+  toast(`Listing price set for "${name}". Push to GitHub to apply.`, 'success');
+}
+
+function quickSetRegistrar() {
+  const name = document.getElementById('qa-reg-ipo').value;
+  if (!name) { toast('Select an IPO', 'error'); return; }
+  const reg = document.getElementById('qa-reg-val').value;
+  if (!reg) { toast('Select a registrar', 'error'); return; }
+
+  if (!corrections[name]) corrections[name] = {};
+  corrections[name].registrar = reg;
+
+  document.getElementById('qa-reg-val').value = '';
+  renderCorrections();
+  toast(`Registrar set for "${name}". Push to GitHub to apply.`, 'success');
+}
+
+// ── Trigger Workflow ──
+async function triggerWorkflow() {
+  const pat = getPAT();
+  if (!pat) {
+    showPATModal();
+    toast('Set your GitHub PAT first', 'error');
+    return;
+  }
+
+  try {
+    const res = await fetch(WORKFLOW_API, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + pat,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ ref: 'main' })
+    });
+
+    if (res.status === 204 || res.ok) {
+      toast('Workflow triggered successfully! Data will update in a few minutes.', 'success');
+    } else {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'HTTP ' + res.status);
+    }
+  } catch (e) {
+    toast('Failed to trigger workflow: ' + e.message, 'error');
+  }
+}
+
+// ── Save RHP Links ──
+function saveRHPLinks() {
+  const inputs = document.querySelectorAll('#rhp-list input[data-ipo]');
+  let count = 0;
+
+  inputs.forEach(input => {
+    const name = input.dataset.ipo;
+    const url = input.value.trim();
+    if (url) {
+      if (!corrections[name]) corrections[name] = {};
+      corrections[name].rhpUrl = url;
+      count++;
+    } else if (corrections[name] && corrections[name].rhpUrl) {
+      delete corrections[name].rhpUrl;
+      if (Object.keys(corrections[name]).length === 0) delete corrections[name];
+    }
+  });
+
+  renderCorrections();
+  toast(`${count} RHP link(s) saved to corrections. Push to GitHub to apply.`, 'success');
+}
+
+// ── PAT Modal ──
+function showPATModal() {
+  const current = getPAT();
+  openModal(`
+    <h2>GitHub Personal Access Token</h2>
+    <p style="color:var(--fg2);font-size:13px;margin-bottom:16px">
+      Token needs <code>repo</code> scope for <code>${REPO_OWNER}/${REPO_NAME}</code>. Stored encrypted in localStorage.
+    </p>
+    <div class="form-group">
+      <label>Personal Access Token</label>
+      <input class="form-input" type="password" id="pat-input" placeholder="ghp_xxxx..." value="${current ? escHtml(current) : ''}">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger btn-sm" onclick="clearPAT()">Clear</button>
+      <button class="btn btn-primary" onclick="savePAT()">Save</button>
+    </div>
+  `);
+}
+
+function savePAT() {
+  const val = document.getElementById('pat-input').value.trim();
+  if (!val) { toast('Enter a token', 'error'); return; }
+  storePAT(val);
+  closeModal();
+  toast('PAT saved and encrypted', 'success');
+  updateStatusRight();
+}
+
+function clearPAT() {
+  localStorage.removeItem('_bpat');
+  closeModal();
+  toast('PAT removed', 'info');
+  updateStatusRight();
+}
+
+// ── Status ──
+function setStatus(color, text) {
+  document.getElementById('status-text').innerHTML = `<span class="status-dot ${color}"></span>${escHtml(text)}`;
+}
+
+function updateStatusRight() {
+  const pat = getPAT();
+  document.getElementById('status-right').innerHTML = pat
+    ? '<span style="color:var(--success)">PAT configured</span>'
+    : '<span style="color:var(--warn)">No PAT</span>';
+}
+
+// ── Init ──
+async function init() {
+  setStatus('yellow', 'Fetching data...');
+  updateStatusRight();
+
+  const [dataOk, corrOk] = await Promise.all([fetchLiveData(), fetchCorrections()]);
+
+  if (dataOk) {
+    renderIPOTable();
+    populateIPODropdowns();
+    renderRHP();
+  }
+  if (corrOk) {
+    renderCorrections();
+  }
+  if (dataOk && corrOk) {
+    setStatus('green', `${liveData.length} IPOs | ${Object.keys(corrections).length} corrections`);
+  }
+}
+
+async function refreshAll() {
+  toast('Refreshing...', 'info');
+  await init();
+}
+</script>
+</body>
+</html>
