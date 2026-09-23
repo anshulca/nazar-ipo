@@ -460,16 +460,14 @@ async function saveEdit(){
   const st = document.getElementById("editStatus");
 
   const gmpVal = document.getElementById("eGmpPct").value.trim();
+  if(!ipo.readings || typeof ipo.readings !== "object") ipo.readings = {};
   if(gmpVal !== ""){
     ipo.overrideGmpPct = +gmpVal;
-    if(!ipo.readings) ipo.readings = [];
-    const hasOverride = ipo.readings.find(r => r.src === "admin-override");
-    if(hasOverride){ hasOverride.pct = +gmpVal; hasOverride.accuracy = 100; }
-    else ipo.readings.push({src:"admin-override",pct:+gmpVal,accuracy:100});
+    ipo.readings["admin-override"] = {gmp: +gmpVal, pct: +gmpVal};
     ipo.prevPct = +gmpVal;
   } else {
     delete ipo.overrideGmpPct;
-    if(ipo.readings) ipo.readings = ipo.readings.filter(r => r.src !== "admin-override");
+    delete ipo.readings["admin-override"];
   }
 
   ipo.rhpUrl = document.getElementById("eRhpUrl").value.trim() || undefined;
