@@ -110,8 +110,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
     <div class="login-brand">&#2349;&#2366;&#2357; &middot; Bhaav by CA Anshul Karwa</div>
     <p>Authorized access only</p>
     <input type="password" id="passInput" placeholder="Enter password" autocomplete="off">
-    <div id="patSaved" style="display:none;font-size:12px;color:var(--up);font-weight:700;margin-bottom:10px">PAT saved &#10003; <span style="color:var(--muted);font-weight:400;cursor:pointer;text-decoration:underline" onclick="document.getElementById('patSaved').style.display='none';document.getElementById('patInput').style.display=''">change</span></div>
-    <input type="text" id="patInput" placeholder="GitHub PAT (Personal Access Token)" autocomplete="off">
+    <div id="patCloud" style="display:none;font-size:12px;color:var(--up);font-weight:700;margin-bottom:10px">PAT stored in cloud &#9745; <span style="color:var(--muted);font-weight:400;cursor:pointer;text-decoration:underline" onclick="showPatField()">change</span></div>
+    <input type="text" id="patInput" placeholder="GitHub PAT (first time only)" autocomplete="off">
     <button onclick="doLogin()">&#128274; Login</button>
     <div class="err" id="loginErr"></div>
     <div class="login-foot">&#2349;&#2366;&#2357; &middot; Bhaav by CA Anshul Karwa &copy; 2026</div>
@@ -214,11 +214,14 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 <script>
 const REPO = "anshulca/bhaav-data";
 const FILE_PATH = "bhaav-data.json";
+const ADMIN_REPO = "anshulca/nazar-ipo";
 const DEFAULT_PASS_HASH = "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8";
 
 let PAT = "";
 let DATA = [];
 let fileSha = "";
+let cloudPat = null;
+let configSha = "";
 
 function toggleTheme(){
   const cur = document.documentElement.getAttribute("data-theme");
@@ -243,38 +246,113 @@ async function sha256(msg){
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
 }
 
+async function deriveKey(password, salt){
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:100000,hash:"SHA-256"}, keyMaterial, {name:"AES-GCM",length:256}, false, ["encrypt","decrypt"]);
+}
+
+async function encryptPAT(pat, password){
+  const enc = new TextEncoder();
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(password, salt);
+  const ct = await crypto.subtle.encrypt({name:"AES-GCM",iv}, key, enc.encode(pat));
+  const combined = new Uint8Array(salt.length + iv.length + new Uint8Array(ct).length);
+  combined.set(salt); combined.set(iv, 16); combined.set(new Uint8Array(ct), 28);
+  return btoa(String.fromCharCode(...combined));
+}
+
+async function decryptPAT(encrypted, password){
+  try{
+    const data = Uint8Array.from(atob(encrypted), c=>c.charCodeAt(0));
+    const key = await deriveKey(password, data.slice(0,16));
+    const dec = await crypto.subtle.decrypt({name:"AES-GCM",iv:data.slice(16,28)}, key, data.slice(28));
+    return new TextDecoder().decode(dec);
+  }catch(e){return null;}
+}
+
+async function loadCloudConfig(){
+  try{
+    const r = await fetch(`config.json?v=${Date.now()}`);
+    if(r.ok){
+      const cfg = await r.json();
+      if(cfg.encryptedPat){
+        cloudPat = cfg.encryptedPat;
+        document.getElementById("patInput").style.display = "none";
+        document.getElementById("patCloud").style.display = "block";
+      }
+    }
+  }catch(e){}
+}
+
+async function saveCloudConfig(pat, password){
+  try{
+    const encrypted = await encryptPAT(pat, password);
+    const cfg = JSON.stringify({encryptedPat: encrypted}, null, 2);
+    const content = btoa(unescape(encodeURIComponent(cfg)));
+    const body = {message:"Update cloud config", content};
+    try{
+      const existing = await fetch(`https://api.github.com/repos/${ADMIN_REPO}/contents/config.json`,{
+        headers:{"Authorization":"Bearer "+pat,"Accept":"application/vnd.github.v3+json"}
+      });
+      if(existing.ok){const j = await existing.json(); body.sha = j.sha;}
+    }catch(e){}
+    await fetch(`https://api.github.com/repos/${ADMIN_REPO}/contents/config.json`,{
+      method:"PUT",
+      headers:{"Authorization":"Bearer "+pat,"Accept":"application/vnd.github.v3+json","Content-Type":"application/json"},
+      body: JSON.stringify(body)
+    });
+  }catch(e){}
+}
+
+function showPatField(){
+  document.getElementById("patCloud").style.display="none";
+  document.getElementById("patInput").style.display="";
+  document.getElementById("patInput").value="";
+}
+
 async function doLogin(){
   const pass = document.getElementById("passInput").value.trim();
-  const pat = document.getElementById("patInput").value.trim();
   const errEl = document.getElementById("loginErr");
-
-  if(!pass||!pat){errEl.textContent="Both fields required.";return;}
+  if(!pass){errEl.textContent="Enter password.";return;}
 
   const hash = await sha256(pass);
   let storedHash;
   try{storedHash=localStorage.getItem("bhaav-admin-pass")}catch(e){}
   if(!storedHash) storedHash = DEFAULT_PASS_HASH;
-
   if(hash !== storedHash){errEl.textContent="Wrong password.";return;}
 
+  let pat = document.getElementById("patInput").value.trim();
+
+  if(!pat && cloudPat){
+    pat = await decryptPAT(cloudPat, pass);
+    if(!pat){errEl.textContent="Could not decrypt PAT. Enter it manually.";showPatField();return;}
+  }
+
+  if(!pat){errEl.textContent="Enter GitHub PAT.";return;}
+
   const check = await fetch(`https://api.github.com/repos/${REPO}`,{headers:{"Authorization":"Bearer "+pat}});
-  if(!check.ok){errEl.textContent="Invalid PAT or no repo access.";return;}
+  if(!check.ok){errEl.textContent="Invalid PAT or no repo access.";if(cloudPat)showPatField();return;}
 
   PAT = pat;
-  try{localStorage.setItem("bhaav-admin-pat",pat)}catch(e){}
   errEl.textContent="";
   document.getElementById("loginWrap").style.display="none";
   document.getElementById("app").classList.add("on");
+
+  if(!cloudPat || document.getElementById("patInput").style.display !== "none"){
+    saveCloudConfig(pat, pass);
+  }
   loadIPOs();
 }
 
 function doLogout(){
   PAT = "";
-  try{localStorage.removeItem("bhaav-admin-pat")}catch(e){}
   document.getElementById("loginWrap").style.display="";
   document.getElementById("app").classList.remove("on");
   document.getElementById("passInput").value="";
   document.getElementById("patInput").value="";
+  loadCloudConfig();
 }
 
 async function loadIPOs(){
@@ -490,27 +568,22 @@ async function changePass(){
   document.getElementById("newPass").value="";
 }
 
-function changePat(){
+async function changePat(){
   const st = document.getElementById("patStatus");
   const np = document.getElementById("newPat").value.trim();
   if(!np){st.className="status-msg err";st.textContent="Enter a PAT.";return;}
+  const check = await fetch(`https://api.github.com/repos/${REPO}`,{headers:{"Authorization":"Bearer "+np}});
+  if(!check.ok){st.className="status-msg err";st.textContent="Invalid PAT.";return;}
   PAT = np;
-  try{localStorage.setItem("bhaav-admin-pat",np)}catch(e){}
-  st.className="status-msg ok";st.textContent="Token updated!";
+  st.className="status-msg info";st.textContent="Saving to cloud...";
+  const pass = prompt("Enter your admin password to encrypt PAT:");
+  if(pass) await saveCloudConfig(np, pass);
+  st.className="status-msg ok";st.textContent="Token updated & saved to cloud!";
   document.getElementById("newPat").value="";
   loadIPOs();
 }
 
-(function(){
-  try{
-    const pat = localStorage.getItem("bhaav-admin-pat");
-    if(pat){
-      document.getElementById("patInput").value = pat;
-      document.getElementById("patInput").style.display = "none";
-      document.getElementById("patSaved").style.display = "block";
-    }
-  }catch(e){}
-})();
+loadCloudConfig();
 </script>
 </body>
 </html>
