@@ -363,7 +363,8 @@ async function loadIPOs(){
     if(!res.ok) throw new Error("Failed to fetch");
     const json = await res.json();
     fileSha = json.sha;
-    const decoded = atob(json.content.replace(/\n/g,""));
+    const raw = atob(json.content.replace(/\n/g,""));
+    const decoded = decodeURIComponent(escape(raw));
     DATA = JSON.parse(decoded);
   }catch(e){
     const feed = `https://raw.githubusercontent.com/${REPO}/main/${FILE_PATH}?v=${Date.now()}`;
